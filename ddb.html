@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MMRRC Strain GO Term Browser</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-800">
+  <div class="max-w-[1130px] mx-auto p-6">
+    <h1 class="text-2xl font-bold mb-4">MMRRC GO Term Browser</h1>
+    <div class="grid grid-cols-3 gap-4">
+      
+      <!-- Column 1: GO Hierarchy -->
+      <div class="col-span-1 bg-white rounded-lg shadow p-4 overflow-y-auto max-h-[80vh]">
+        <ul id="go-tree" class="space-y-2 text-sm"></ul>
+      </div>
+      
+      <!-- Column 2: Strain Details -->
+      <div class="col-span-2 bg-white rounded-lg shadow p-4 overflow-y-auto max-h-[80vh]">
+        <h2 class="text-xl font-semibold mb-2" id="selected-go-label">Select a GO Term</h2>
+        <ul id="strain-list" class="list-disc list-inside text-blue-600 space-y-1"></ul>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const ROOT_TERMS = [
+      "http://purl.obolibrary.org/obo/GO_0008150",
+      "http://purl.obolibrary.org/obo/GO_0005575",
+      "http://purl.obolibrary.org/obo/GO_0003674"
+    ];
+
+    async function fetchTerm(id) {
+      const res = await fetch(`http://localhost:3000/api/go/${encodeURIComponent(id)}`);
+      return res.ok ? await res.json() : null;
+    }
+
+    async function fetchChildren(id) {
+      const res = await fetch(`http://localhost:3000/api/go/children/${encodeURIComponent(id)}`);
+      return res.ok ? await res.json() : [];
+    }
+
+    async function buildNode(term, container) {
+      const li = document.createElement("li");
+      li.classList.add("cursor-pointer", "hover:underline");
+      li.textContent = term.lbl || term.id;
+      li.dataset.id = term.id;
+      li.dataset.expanded = "false";
+
+      const childrenUL = document.createElement("ul");
+      childrenUL.classList.add("ml-4", "space-y-1", "hidden");
+      li.appendChild(childrenUL);
+
+      li.onclick = async (e) => {
+        e.stopPropagation();
+        showStrains(term);
+
+        const expanded = li.dataset.expanded === "true";
+        if (!expanded) {
+          if (!li.dataset.loaded) {
+            const children = await fetchChildren(term.id);
+            for (const child of children) {
+              const childTerm = await fetchTerm(child.sub);
+              if (childTerm) await buildNode(childTerm, childrenUL);
+            }
+            li.dataset.loaded = "true";
+          }
+          childrenUL.classList.remove("hidden");
+          li.dataset.expanded = "true";
+        } else {
+          childrenUL.classList.add("hidden");
+          li.dataset.expanded = "false";
+        }
+      };
+
+      container.appendChild(li);
+    }
+
+    function showStrains(term) {
+      const label = document.getElementById("selected-go-label");
+      const list = document.getElementById("strain-list");
+
+      label.textContent = `${term.lbl} (GO ID: ${term.id})`;
+      list.innerHTML = "";
+
+      const strains = term.mmrrcStrains || [];
+      if (strains.length === 0) {
+        list.innerHTML = "<li class='text-gray-500'>No strains linked to this term.</li>";
+      } else {
+        for (const strain of strains) {
+          const li = document.createElement("li");
+          const link = document.createElement("a");
+          link.href = `${strain.url}`;
+          link.textContent = strain.otherNames;
+          link.classList.add("hover:underline");
+          list.appendChild(li);
+          li.appendChild(link);
+        }
+      }
+    }
+
+    async function init() {
+      const tree = document.getElementById("go-tree");
+      for (const id of ROOT_TERMS) {
+        const term = await fetchTerm(id);
+        if (term) buildNode(term, tree);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

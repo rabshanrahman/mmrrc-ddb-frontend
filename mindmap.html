@@ -90,6 +90,9 @@
       opacity: 1;
       transform: translateY(0);
     }
+    ul {
+        list-style-type:  none !important;
+    }
   </style>
 </head>
 <body class="bg-gray-100">
@@ -1066,8 +1069,16 @@
           `;
 
           if (term.mmrrcStrains && term.mmrrcStrains.length > 0) {
-            strainList.innerHTML = term.mmrrcStrains.map(strain => 
-              `<li><a href="${strain}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">${strain}</a></li>`
+            // Use populated strain details with otherNames and url
+            strainList.innerHTML = term.mmrrcStrains.map((strain, index) => 
+              `<li class="my-2 px-2 py-1 rounded ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}">
+                <a href="${strain.url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline block leading-tight">
+                  ${strain.otherNames || strain.url}
+                </a>
+                <div class="text-xs text-gray-500 leading-tight" style="font-size: 8px;">
+                  ${strain.url}
+                </div>
+              </li>`
             ).join('');
           } else {
             strainList.innerHTML = '<li class="text-gray-500">No linked strains found</li>';
