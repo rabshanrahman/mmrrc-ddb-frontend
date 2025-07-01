@@ -90,16 +90,146 @@
       opacity: 1;
       transform: translateY(0);
     }
+    .info-icon {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 24px;
+      height: 24px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 1002;
+      transition: all 0.2s ease-out;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    }
+    .info-icon:hover {
+      background: rgba(255, 255, 255, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      transform: scale(1.05);
+    }
+    .info-icon svg {
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+    }
+    .legend-panel {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
+      padding: 16px;
+      min-width: 200px;
+      max-width: 280px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+      z-index: 1002;
+      opacity: 0;
+      transform: translateY(-10px) scale(0.95);
+      transition: all 0.3s ease-out;
+      pointer-events: none;
+    }
+    .legend-panel.visible {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+    }
+    .legend-panel h3 {
+      margin: 0 0 12px 0;
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(0, 0, 0, 0.9);
+      text-align: center;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      margin: 6px 0;
+      font-size: 10px;
+      color: rgba(0, 0, 0, 0.8);
+    }
+    .legend-line {
+      width: 20px;
+      height: 2px;
+      margin-right: 8px;
+      border-radius: 1px;
+    }
+    .close-button {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 16px;
+      height: 16px;
+      background: rgba(0, 0, 0, 0.1);
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: bold;
+      color: rgba(0, 0, 0, 0.6);
+      transition: all 0.2s ease-out;
+    }
+    .close-button:hover {
+      background: rgba(0, 0, 0, 0.2);
+      color: rgba(0, 0, 0, 0.8);
+    }
     ul {
         list-style-type:  none !important;
     }
   </style>
 </head>
 <body class="bg-gray-100">
-  <div class="mx-auto max-w-[1130px] flex h-screen">
+  <div class="mx-auto my-6 max-w-[1130px] max-h-[475px] flex h-screen">
     <!-- Column 1 -->
-    <div id="canvas-wrapper" class="w-2/3 bg-white border-r relative canvas-wrapper">
+    <div id="canvas-wrapper" class="w-3/4 bg-white border-r relative canvas-wrapper">
       <canvas id="canvas" class="infinite-canvas" width="2000" height="2000"></canvas>
+      
+      <!-- Info Icon -->
+      <div id="info-icon" class="info-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" fill="rgba(0, 0, 0, 0.7)"/>
+        </svg>
+      </div>
+      
+      <!-- Legend Panel -->
+      <div id="legend-panel" class="legend-panel">
+        <button id="close-legend" class="close-button">×</button>
+        <h3>Legend</h3>
+        <div class="legend-item">
+          <div class="legend-line" style="background-color: #3490dc;"></div>
+          <span> is a</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-line" style="background-color: #38c172;"></div>
+          <span> part of</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-line" style="background-color: #ffed4a;"></div>
+          <span> positively regulates</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-line" style="background-color: #6c757d;"></div>
+          <span> negatively regulates</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-line" style="background-color: #1a237e;"></div>
+          <span> regulates</span>
+        </div>
+        <div class="legend-item" style="margin-top: 12px;">
+          <span style="font-weight: 600;">↕ Scroll to Zoom</span>
+        </div>
+      </div>
+      
       <div id="hover-panel" class="hover-panel">
         <h4 id="hover-title">Term Name</h4>
         <p id="hover-description">Loading...</p>
@@ -111,7 +241,7 @@
     </div>
 
     <!-- Column 2 -->
-    <div id="details" class="w-1/3 p-4 overflow-y-auto">
+    <div id="details" class="w-1/4 p-4 overflow-y-auto overflow-x-hidden">
       <h2 class="text-xl font-semibold mb-2">GO Term Details</h2>
       <div id="term-info" class="mb-4">
         <p class="text-gray-600">Click a term to see details</p>
@@ -152,11 +282,11 @@
     let rippleAnimationId = null;
 
     const colorsByPred = {
-      "is_a": "#3490dc",
-      "http://purl.obolibrary.org/obo/BFO_0000050": "#38c172", 
-      "http://purl.obolibrary.org/obo/RO_0002213": "#ffed4a",
-      "http://purl.obolibrary.org/obo/RO_0002212": "#6c757d",
-      "http://purl.obolibrary.org/obo/RO_0002211": "#1a237e"
+      "is_a": "#3490dc", //blue 
+      "http://purl.obolibrary.org/obo/BFO_0000050": "#38c172", // 'part of' is a teal-green line
+      "http://purl.obolibrary.org/obo/RO_0002213": "#ffed4a", // 'postively regulates' is a yellow line
+      "http://purl.obolibrary.org/obo/RO_0002212": "#6c757d", // 'negatively regulates' is a dark grey line 
+      "http://purl.obolibrary.org/obo/RO_0002211": "#1a237e" // 'regulates' is a dark blue/navy line
     };
 
     // Family colors for glassmorphism effect
@@ -1043,6 +1173,40 @@
       return null;
     }
 
+    // Legend panel functionality
+    function initLegendPanel() {
+      const infoIcon = document.getElementById('info-icon');
+      const legendPanel = document.getElementById('legend-panel');
+      const closeButton = document.getElementById('close-legend');
+      
+      // Show legend panel, hide info icon
+      function showLegend() {
+        infoIcon.style.display = 'none';
+        legendPanel.classList.add('visible');
+      }
+      
+      // Hide legend panel, show info icon
+      function hideLegend() {
+        legendPanel.classList.remove('visible');
+        setTimeout(() => {
+          infoIcon.style.display = 'flex';
+        }, 150); // Small delay for smooth transition
+      }
+      
+      // Event listeners
+      infoIcon.addEventListener('click', showLegend);
+      closeButton.addEventListener('click', hideLegend);
+      
+      // Close legend when clicking outside
+      document.addEventListener('click', (e) => {
+        if (legendPanel.classList.contains('visible') && 
+            !legendPanel.contains(e.target) && 
+            !infoIcon.contains(e.target)) {
+          hideLegend();
+        }
+      });
+    }
+
     canvas.addEventListener("click", async (e) => {
       // Click events are now handled in mouseup to distinguish from drag
       // This prevents double-triggering of toggleNode
@@ -1277,11 +1441,14 @@
       // Initialize hover panel
       initHoverPanel();
       
+      // Initialize legend panel
+      initLegendPanel();
+      
       // Position root terms with more spacing to avoid initial overlap
       const positions = [
-        { x: 200, y: 200 },   // Top-left
-        { x: 500, y: 200 },   // Top-right  
-        { x: 350, y: 400 }    // Bottom-center
+        { x: 220, y: 150 },   // Top-left
+        { x: 670, y: 200 },   // Top-right  
+        { x: 420, y: 360 }    // Bottom-center
       ];
 
       for (let i = 0; i < ROOT_TERMS.length; i++) {
