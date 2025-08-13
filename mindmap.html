@@ -253,9 +253,9 @@
 
   <script>
     const ROOT_TERMS = [
-      "http://purl.obolibrary.org/obo/GO_0008150",
-      "http://purl.obolibrary.org/obo/GO_0005575", 
-      "http://purl.obolibrary.org/obo/GO_0003674"
+      "GO:0008150",
+      "GO:0005575", 
+      "GO:0003674"
     ];
 
     const PAGINATION_THRESHOLD = 50; // Paginate families with more than 50 children
@@ -281,7 +281,7 @@
       };
     }
     
-    let nodes = {}; // Map from GO ID to { x, y, lbl, children: [GO ID], parent, pred, currentPage, totalPages, allChildren }
+    let nodes = {}; // Map from GO ID to { x, y, lbl, children: [GO ID], parent, relation_type, currentPage, totalPages, allChildren }
     let panX = 0;
     let panY = 0;
     let zoomLevel = 1;
@@ -824,27 +824,27 @@
       });
     }
 
-    const colorsByPred = {
+    const colorsByrelation_type = {
       "is_a": "#3490dc", //blue 
-      "http://purl.obolibrary.org/obo/BFO_0000050": "#38c172", // 'part of' is a teal-green line
-      "http://purl.obolibrary.org/obo/RO_0002213": "#ffed4a", // 'postively regulates' is a yellow line
-      "http://purl.obolibrary.org/obo/RO_0002212": "#8b0000", // 'negatively regulates' is a dark red line 
-      "http://purl.obolibrary.org/obo/RO_0002211": "#1a237e" // 'regulates' is a dark blue/navy line
+      "part_of": "#38c172", // 'part of' is a teal-green line
+      "positively_regulates": "#ffed4a", // 'postively regulates' is a yellow line
+      "negatively_regulates": "#8b0000", // 'negatively regulates' is a dark red line 
+      "regulates": "#1a237e" // 'regulates' is a dark blue/navy line
     };
 
     // Family colors for glassmorphism effect
     const familyColors = {
-      "http://purl.obolibrary.org/obo/GO_0008150": {
+      "GO:0008150": {
         bg: "rgba(59, 130, 246, 0.15)", // Blue glass
         border: "rgba(59, 130, 246, 0.3)",
         text: "rgba(30, 64, 175, 0.9)"
       },
-      "http://purl.obolibrary.org/obo/GO_0005575": {
+      "GO:0005575": {
         bg: "rgba(34, 197, 94, 0.15)", // Green glass
         border: "rgba(34, 197, 94, 0.3)", 
         text: "rgba(21, 128, 61, 0.9)"
       },
-      "http://purl.obolibrary.org/obo/GO_0003674": {
+      "GO:0003674": {
         bg: "rgba(239, 68, 68, 0.15)", // Red glass
         border: "rgba(239, 68, 68, 0.3)",
         text: "rgba(153, 27, 27, 0.9)"
@@ -871,9 +871,9 @@
     function getRippleColor(nodeId) {
       const rootFamily = getRootFamily(nodeId);
       const rippleColors = {
-        "http://purl.obolibrary.org/obo/GO_0008150": "rgba(59, 130, 246, 1)", // Blue
-        "http://purl.obolibrary.org/obo/GO_0005575": "rgba(34, 197, 94, 1)", // Green
-        "http://purl.obolibrary.org/obo/GO_0003674": "rgba(239, 68, 68, 1)"  // Red
+        "GO:0008150": "rgba(59, 130, 246, 1)", // Blue
+        "GO:0005575": "rgba(34, 197, 94, 1)", // Green
+        "GO:0003674": "rgba(239, 68, 68, 1)"  // Red
       };
       return rippleColors[rootFamily] || "rgba(156, 163, 175, 1)"; // Gray default
     }
@@ -1008,7 +1008,7 @@
       }, 2000);
     }
 
-    function drawLine(x1, y1, x2, y2, pred) {
+    function drawLine(x1, y1, x2, y2, relation_type) {
       const startX = (x1 * zoomLevel) + panX;
       const startY = (y1 * zoomLevel) + panY;
       const endX = (x2 * zoomLevel) + panX;
@@ -1036,7 +1036,7 @@
       
       // Create gradient for line that fades near circles
       const gradient = ctx.createLinearGradient(startOffsetX, startOffsetY, endOffsetX, endOffsetY);
-      const color = colorsByPred[pred] || colorsByPred.default;
+      const color = colorsByrelation_type[relation_type] || colorsByrelation_type.default;
       
       // Extract RGB from hex color
       const r = parseInt(color.slice(1, 3), 16);
@@ -1156,7 +1156,7 @@
       // Only draw text if zoom level is reasonable for readability
       if (zoomLevel > 0.4) {
         // Transform the label to shorten common terms
-        const transformedLabel = transformNodeLabel(node.lbl);
+        const transformedLabel = transformNodeLabel(node.name);
         
         // Split long labels into multiple lines
         const words = transformedLabel.split('_');
@@ -1326,7 +1326,7 @@
         // Draw all connections first (including those outside viewport)
         ctx.save();
         for (const connection of visibleConnections) {
-            drawLine(connection.parent.x, connection.parent.y, connection.child.x, connection.child.y, connection.child.pred);
+            drawLine(connection.parent.x, connection.parent.y, connection.child.x, connection.child.y, connection.child.relation_type);
         }
         ctx.restore();
         
@@ -1733,7 +1733,7 @@
             // PERFORMANCE OPTIMIZATION: Add ALL child IDs to allChildren immediately
             // so pagination navigation works, but only process first page fully
             for (const child of children) {
-              parent.allChildren.push(child.sub);
+              parent.allChildren.push(child.child_go_id);
             }
             
             // Process first page children immediately for quick display
@@ -1741,7 +1741,7 @@
             const remainingChildren = children.slice(CHILDREN_PER_PAGE);
             
             // Extract all child IDs for the first page
-            const firstPageChildIds = firstPageChildren.map(child => child.sub);
+            const firstPageChildIds = firstPageChildren.map(child => child.child_go_id);
 
             // Fetch all terms in one batch
             const batchTerms = await fetchGOTermsBatch(firstPageChildIds);
@@ -1752,10 +1752,10 @@
                 if (!term) return null;
 
                 return {
-                    id: child.sub,
-                    lbl: term.lbl || child.sub,
+                    id: child.child_go_id,
+                    name: term.name || child.child_go_id,
                     parent: id,
-                    pred: child.pred,
+                    relation_type: child.relation_type,
                     children: [],
                     childrenLoaded: false,
                     visible: false,
@@ -1789,7 +1789,7 @@
             positions = avoidOverlaps(positions, nodes);
 
             //Get childIds
-            const childIds = children.map(child => child.sub);
+            const childIds = children.map(child => child.child_go_id);
 
             //Batch fetch
             const batchTerms = await fetchGOTermsBatch(childIds);
@@ -1804,12 +1804,12 @@
 
               const pos = positions[i];
               return {
-                id: child.sub,
-                lbl: term.lbl || child.sub,
+                id: child.child_go_id,
+                name: term.name || child.child_go_id,
                 x: pos.x,
                 y: pos.y,
                 parent: id,
-                pred: child.pred,
+                relation_type: child.relation_type,
                 children: [],
                 childrenLoaded: false,
                 visible: true,
@@ -1869,7 +1869,7 @@
             const batch = remainingChildren.slice(i, i + batchSize);
             
             // Extract child IDs for batch fetching
-            const childIds = batch.map(child => child.sub);
+            const childIds = batch.map(child => child.child_go_id);
             
             // Fetch all terms in one batch API call (up to 50 terms)
             const batchTerms = await fetchGOTermsBatch(childIds);
@@ -1880,10 +1880,10 @@
             if (!term) return null;
 
             return {
-                id: child.sub,
-                lbl: term.lbl || child.sub,
+                id: child.child_go_id,
+                name: term.name || child.child_go_id,
                 parent: parentId,
-                pred: child.pred,
+                relation_type: child.relation_type,
                 children: [],
                 childrenLoaded: false,
                 visible: false,
@@ -2086,7 +2086,7 @@
       }
       
       // Update panel content immediately with basic info
-      document.getElementById('hover-title').textContent = node.lbl || 'Loading...';
+      document.getElementById('hover-title').textContent = node.name || 'Loading...';
       document.getElementById('hover-description').textContent = 'Loading term details...';
       document.getElementById('hover-description').className = 'loading';
       document.getElementById('hover-id').textContent = node.id;
@@ -2138,14 +2138,14 @@
 
     // Helper function to update hover panel content
     function updateHoverPanelContent(node, term) {
-      document.getElementById('hover-title').textContent = term.lbl || node.lbl;
+      document.getElementById('hover-title').textContent = term.name || node.name;
       
       // Create a nice description using the correct schema path
       let description = '';
-      if (term.meta && term.meta.definition && term.meta.definition.val) {
-        description = term.meta.definition.val.length > 120 ? 
-          term.meta.definition.val.substring(0, 120) + '...' : 
-          term.meta.definition.val;
+      if (term.definition) {
+        description = term.definition.length > 120 ? 
+          term.definition.substring(0, 120) + '...' : 
+          term.definition;
       } else {
         description = 'No description available';
       }
@@ -2220,7 +2220,7 @@
       const strainList = document.getElementById("strainList");
       
       termInfo.innerHTML = `
-        <h3 class="font-semibold">${node.lbl}</h3>
+        <h3 class="font-semibold">${node.name}</h3>
         <p class="text-sm text-gray-600">${id}</p>
         <p class="text-xs text-gray-500 mt-1">Loading strain data...</p>
       `;
@@ -2229,30 +2229,39 @@
       fetchGOTerm(id).then(term => {
         if (term) {
           termInfo.innerHTML = `
-            <h3 class="font-semibold">${term.lbl || node.lbl}</h3>
+            <h3 class="font-semibold">${term.name || node.name}</h3>
             <p class="text-sm text-gray-600">${id}</p>
           `;
+        }
+      }).catch(error => {
+        console.error('Error loading term details:', error);
+        termInfo.innerHTML += `<p class="text-red-500 text-xs">Error loading details</p>`;
+      });
 
-          if (term.mmrrcStrains && term.mmrrcStrains.length > 0) {
-            // Use populated strain details with otherNames and url
-            strainList.innerHTML = term.mmrrcStrains.map((strain, index) => 
+      // Fetch strain data from separate endpoint
+      strainList.innerHTML = '<li class="text-gray-500">Loading strains...</li>';
+      fetch(`http://localhost:3000/api/go/${encodeURIComponent(id)}/mmrrc-strains`)
+        .then(response => response.ok ? response.json() : [])
+        .then(strains => {
+          if (strains.length > 0) {
+            strainList.innerHTML = strains.map((strain, index) => 
               `<li class="my-2 px-2 py-1 rounded ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}">
-                <a href="${strain.url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline block leading-tight">
-                  ${strain.otherNames || strain.url}
+                <a href="https://www.mmrrc.org/catalog/sds.php?mmrrc_id=${strain.mmrrc_id}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline block leading-tight">
+                  ${strain.mmrrc_id}
                 </a>
                 <div class="text-xs text-gray-500 leading-tight" style="font-size: 8px;">
-                  ${strain.url}
+                  MMRRC ID: ${strain.mmrrc_id}
                 </div>
               </li>`
             ).join('');
           } else {
             strainList.innerHTML = '<li class="text-gray-500">No linked strains found</li>';
           }
-        }
-      }).catch(error => {
-        console.error('Error loading term details:', error);
-        termInfo.innerHTML += `<p class="text-red-500 text-xs">Error loading details</p>`;
-      });
+        })
+        .catch(error => {
+          console.error('Error loading strain data:', error);
+          strainList.innerHTML = '<li class="text-red-500">Error loading strains</li>';
+        });
     }
 
     // Pan the canvas
@@ -2504,11 +2513,11 @@
         if (term) {
           const node = {
             id: rootId,
-            lbl: term.lbl || rootId,
+            name: term.name || rootId,
             x: positions[i].x,
             y: positions[i].y,
             parent: null,
-            pred: null,
+            relation_type: null,
             children: [],
             childrenLoaded: false,
             visible: true,
@@ -2520,7 +2529,7 @@
           };
           
           nodes[rootId] = node;
-          console.log(`Added root node: ${term.lbl}`);
+          console.log(`Added root node: ${term.name}`);
         }
       }
       

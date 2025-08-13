@@ -1,0 +1,511 @@
+openapi: 3.0.3
+info:
+  title: MMRRC DDB Express API
+  version: 1.0.0
+  description: |
+    MMRRC GO drill down browser REST API for querying Gene Ontology (GO) terms and associated MMRRC strain data.
+    
+    This API provides access to:
+    - GO terms with their definitions and metadata
+    - GO term hierarchical relationships (parent/child)
+    - MMRRC strain catalog data
+    - Mappings between GO terms and MMRRC strains
+  contact:
+    name: API Support
+    email: support@mmrrc.org
+  license:
+    name: GPL-3.0-or-later
+    url: https://www.gnu.org/licenses/gpl-3.0.html
+
+servers:
+  - url: http://localhost:3000
+    description: Development server
+  - url: https://api.mmrrc.org
+    description: Production server
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Check the health status of the API and database connections
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  timestamp:
+                    type: string
+                    format: date-time
+                  databases:
+                    type: object
+                    properties:
+                      searchCatalog:
+                        type: string
+                        example: connected
+                      mmrrcMgi:
+                        type: string
+                        example: connected
+        '503':
+          description: Service is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/go/{id}:
+    get:
+      summary: Get a single GO term by ID
+      description: Retrieve detailed information about a specific Gene Ontology term
+      tags:
+        - GO Terms
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: GO term identifier (e.g., GO:0008150)
+          schema:
+            type: string
+            pattern: '^GO:\d{7}$'
+            example: GO:0008150
+      responses:
+        '200':
+          description: GO term found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GOTerm'
+        '404':
+          description: GO term not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/go/batch:
+    post:
+      summary: Batch fetch GO terms
+      description: Retrieve multiple GO terms in a single request (maximum 100 terms)
+      tags:
+        - GO Terms
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - ids
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+                    pattern: '^GO:\d{7}$'
+                  minItems: 1
+                  maxItems: 100
+                  example: ["GO:0008150", "GO:0003674", "GO:0005575"]
+      responses:
+        '200':
+          description: Batch request successful
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  oneOf:
+                    - $ref: '#/components/schemas/GOTerm'
+                    - type: 'null'
+                description: Array of GO terms or null for missing terms, in the same order as requested
+        '400':
+          description: Bad request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/go/children/{id}:
+    get:
+      summary: Get children of a GO term
+      description: Retrieve all direct child terms of a specified GO term with relationship details
+      tags:
+        - GO Terms
+        - Relationships
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Parent GO term identifier
+          schema:
+            type: string
+            pattern: '^GO:\d{7}$'
+            example: GO:0008150
+      responses:
+        '200':
+          description: Children found
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GOTermRelationship'
+        '404':
+          description: No children found for this GO ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/go/parents/{id}:
+    get:
+      summary: Get parents of a GO term
+      description: Retrieve all direct parent terms of a specified GO term with relationship details
+      tags:
+        - GO Terms
+        - Relationships
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Child GO term identifier
+          schema:
+            type: string
+            pattern: '^GO:\d{7}$'
+            example: GO:0008150
+      responses:
+        '200':
+          description: Parents found
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GOTermRelationship'
+        '404':
+          description: No parents found for this GO ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/go/{id}/mmrrc-strains:
+    get:
+      summary: Get MMRRC strains associated with a GO term
+      description: Retrieve all MMRRC strain catalog entries associated with a specific GO term
+      tags:
+        - GO Terms
+        - MMRRC Strains
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: GO term identifier
+          schema:
+            type: string
+            pattern: '^GO:\d{7}$'
+            example: GO:0008150
+      responses:
+        '200':
+          description: Associated strains found
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MMRRCStrain'
+        '404':
+          description: No MMRRC strains found for this GO ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/go/search/{query}:
+    get:
+      summary: Search GO terms
+      description: Search for GO terms by name, definition, or GO ID with pagination support
+      tags:
+        - GO Terms
+        - Search
+      parameters:
+        - name: query
+          in: path
+          required: true
+          description: Search query string
+          schema:
+            type: string
+            minLength: 1
+            example: "biological_process"
+        - name: limit
+          in: query
+          description: Maximum number of results to return (max 100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: offset
+          in: query
+          description: Number of results to skip for pagination
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GOTerm'
+        '400':
+          description: Bad request - invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    GOTerm:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Database primary key
+          example: 1
+        go_id:
+          type: string
+          description: Gene Ontology identifier
+          pattern: '^GO:\d{7}$'
+          example: GO:0008150
+        name:
+          type: string
+          description: GO term name
+          example: biological_process
+        namespace:
+          type: string
+          description: GO namespace/aspect
+          enum: [biological_process, molecular_function, cellular_component]
+          example: biological_process
+        definition:
+          type: string
+          description: Detailed definition of the GO term
+          example: "A biological process represents a specific objective that the organism is genetically programmed to achieve."
+        createdAt:
+          type: string
+          format: date-time
+          description: Record creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Record last update timestamp
+      required:
+        - id
+        - go_id
+        - name
+
+    GOTermRelationship:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Database primary key
+          example: 1
+        parent_go_id:
+          type: string
+          description: Parent GO term identifier
+          pattern: '^GO:\d{7}$'
+          example: GO:0008150
+        child_go_id:
+          type: string
+          description: Child GO term identifier
+          pattern: '^GO:\d{7}$'
+          example: GO:0009987
+        relation_type:
+          type: string
+          description: Type of relationship
+          enum: [is_a, part_of, regulates, positively_regulates, negatively_regulates]
+          default: is_a
+          example: is_a
+        parentTerm:
+          $ref: '#/components/schemas/GOTerm'
+        childTerm:
+          $ref: '#/components/schemas/GOTerm'
+      required:
+        - id
+        - parent_go_id
+        - child_go_id
+        - relation_type
+
+    MMRRCStrain:
+      type: object
+      properties:
+        mmrrc_id:
+          type: integer
+          description: MMRRC strain identifier (primary key)
+          example: 12345
+        stock_id:
+          type: string
+          description: Stock identifier
+          example: "032999-JAX"
+        strain_name:
+          type: string
+          description: Official strain name
+          example: "B6.129S4-Mecp2tm1.1Bird/J"
+        normalized_strain_name:
+          type: string
+          description: Normalized strain name for searching
+          example: "b6.129s4-mecp2tm1.1bird/j"
+        mgi_ids:
+          type: string
+          description: Comma-separated MGI identifiers
+          example: "MGI:2156186,MGI:1339758"
+        other_names:
+          type: string
+          description: Alternative names for the strain
+          example: "Mecp2-null, Mecp2-knockout"
+        source_collection:
+          type: string
+          description: Source collection or repository
+          example: "JAX"
+        alteration:
+          type: string
+          description: Type of genetic alteration
+          example: "Targeted mutation"
+        mp_terms:
+          type: string
+          description: Mammalian Phenotype ontology terms
+        mesh_terms:
+          type: string
+          description: Medical Subject Headings terms
+        doid_terms:
+          type: string
+          description: Disease Ontology terms
+        research_apps:
+          type: string
+          description: Research applications
+        pmids:
+          type: string
+          description: PubMed identifiers
+        gene_synonyms:
+          type: string
+          description: Gene synonyms
+        availability:
+          type: string
+          description: Strain availability status
+          example: "Live"
+        donor:
+          type: string
+          description: Strain donor information
+        is_available:
+          type: integer
+          description: Availability flag (1=available, 0=not available)
+          enum: [0, 1]
+          example: 1
+        np_only:
+          type: integer
+          description: Non-profit only flag (1=yes, 0=no)
+          enum: [0, 1]
+          example: 0
+        createdAt:
+          type: string
+          format: date-time
+          description: Record creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Record last update timestamp
+      required:
+        - mmrrc_id
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: "Internal server error"
+        message:
+          type: string
+          description: Detailed error description
+          example: "Database connection failed"
+        timestamp:
+          type: string
+          format: date-time
+          description: Error timestamp
+      required:
+        - error
+
+    NotFoundResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Not found message
+          example: "GO ID not found"
+      required:
+        - message
+
+tags:
+  - name: Health
+    description: API health and status endpoints
+  - name: GO Terms
+    description: Gene Ontology term operations
+  - name: Relationships
+    description: GO term relationship operations
+  - name: MMRRC Strains
+    description: MMRRC strain catalog operations
+  - name: Search
+    description: Search and query operations
+
+security: []
+
+externalDocs:
+  description: Gene Ontology Documentation
+  url: http://geneontology.org/docs/

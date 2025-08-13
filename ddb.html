@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>MMRRC Strain GO Term Browser</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .go-term-text:hover {
+      text-decoration: underline;
+    }
+  </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
   <div class="max-w-[1130px] mx-auto p-6">
@@ -19,7 +24,7 @@
       <!-- Column 2: Strain Details -->
       <div class="col-span-2 bg-white rounded-lg shadow p-4 overflow-y-auto max-h-[80vh]">
         <h2 class="text-xl font-semibold mb-2" id="selected-go-label">Select a GO Term</h2>
-        <ul id="strain-list" class="list-disc list-inside text-blue-600 space-y-1"></ul>
+        <ol id="strain-list" class="list-decimal list-inside space-y-1"></ol>
       </div>
 
     </div>
@@ -27,9 +32,9 @@
 
   <script>
     const ROOT_TERMS = [
-      "http://purl.obolibrary.org/obo/GO_0008150",
-      "http://purl.obolibrary.org/obo/GO_0005575",
-      "http://purl.obolibrary.org/obo/GO_0003674"
+      "GO:0008150",
+      "GO:0005575",
+      "GO:0003674"
     ];
 
     async function fetchTerm(id) {
@@ -44,25 +49,29 @@
 
     async function buildNode(term, container) {
       const li = document.createElement("li");
-      li.classList.add("cursor-pointer", "hover:underline");
-      li.textContent = term.lbl || term.id;
-      li.dataset.id = term.id;
+      li.dataset.id = term.go_id;
       li.dataset.expanded = "false";
+      
+      const textSpan = document.createElement("span");
+      textSpan.classList.add("cursor-pointer", "go-term-text");
+      textSpan.textContent = term.name || term.go_id;
 
       const childrenUL = document.createElement("ul");
       childrenUL.classList.add("ml-4", "space-y-1", "hidden");
+      
+      li.appendChild(textSpan);
       li.appendChild(childrenUL);
 
-      li.onclick = async (e) => {
+      textSpan.onclick = async (e) => {
         e.stopPropagation();
         showStrains(term);
 
         const expanded = li.dataset.expanded === "true";
         if (!expanded) {
           if (!li.dataset.loaded) {
-            const children = await fetchChildren(term.id);
+            const children = await fetchChildren(term.go_id);
             for (const child of children) {
-              const childTerm = await fetchTerm(child.sub);
+              const childTerm = await fetchTerm(child.child_go_id);
               if (childTerm) await buildNode(childTerm, childrenUL);
             }
             li.dataset.loaded = "true";
@@ -78,26 +87,35 @@
       container.appendChild(li);
     }
 
-    function showStrains(term) {
+    async function showStrains(term) {
       const label = document.getElementById("selected-go-label");
       const list = document.getElementById("strain-list");
 
-      label.textContent = `${term.lbl} (GO ID: ${term.id})`;
-      list.innerHTML = "";
+      label.textContent = `${term.name} (${term.go_id})`;
+      list.innerHTML = "<li class='text-gray-500'>Loading strains...</li>";
 
-      const strains = term.mmrrcStrains || [];
-      if (strains.length === 0) {
-        list.innerHTML = "<li class='text-gray-500'>No strains linked to this term.</li>";
-      } else {
-        for (const strain of strains) {
-          const li = document.createElement("li");
-          const link = document.createElement("a");
-          link.href = `${strain.url}`;
-          link.textContent = strain.otherNames;
-          link.classList.add("hover:underline");
-          list.appendChild(li);
-          li.appendChild(link);
+      try {
+        const res = await fetch(`http://localhost:3000/api/go/${encodeURIComponent(term.go_id)}/mmrrc-strains`);
+        const strains = res.ok ? await res.json() : [];
+        
+        list.innerHTML = "";
+        
+        if (strains.length === 0) {
+          list.innerHTML = "<li class='text-gray-500'>No strains linked to this term.</li>";
+        } else {
+          for (const strain of strains) {
+            const li = document.createElement("li");
+            const link = document.createElement("a");
+            link.href = `https://www.mmrrc.org/catalog/sds.php?mmrrc_id=${strain.mmrrc_id}`;
+            link.textContent = strain.mmrrc_id;
+            link.classList.add("hover:underline");
+            li.appendChild(link);
+            list.appendChild(li);
+          }
         }
+      } catch (error) {
+        list.innerHTML = "<li class='text-red-500'>Error loading strains.</li>";
+        console.error('Error fetching strains:', error);
       }
     }
 
