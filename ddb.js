@@ -1,3 +1,6 @@
+// Enter the url of the backend api
+const apiUrl = 'http://localhost:3000/api'
+
 const ROOT_TERMS = [
     "GO:0008150",
     "GO:0005575",
@@ -5,12 +8,12 @@ const ROOT_TERMS = [
 ];
 
 async function fetchTerm(id) {
-    const res = await fetch(`http://localhost:3000/api/go/${encodeURIComponent(id)}`);
+    const res = await fetch(`${apiUrl}/go/${encodeURIComponent(id)}`);
     return res.ok ? await res.json() : null;
 }
 
 async function fetchChildren(id) {
-    const res = await fetch(`http://localhost:3000/api/go/children/${encodeURIComponent(id)}`);
+    const res = await fetch(`${apiUrl}/go/children/${encodeURIComponent(id)}`);
     return res.ok ? await res.json() : [];
 }
 
@@ -62,7 +65,7 @@ async function showStrains(term) {
     list.innerHTML = "<li class='text-gray-500'>Loading strains...</li>";
 
     try {
-    const res = await fetch(`http://localhost:3000/api/go/${encodeURIComponent(term.go_id)}/mmrrc-strains`);
+    const res = await fetch(`${apiUrl}/go/${encodeURIComponent(term.go_id)}/mmrrc-strains`);
     const strains = res.ok ? await res.json() : [];
     
     list.innerHTML = "";

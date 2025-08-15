@@ -1,3 +1,6 @@
+// Enter the url of the backend api
+const apiUrl = 'http://localhost:3000/api'
+
 const ROOT_TERMS = [
     "GO:0008150",
     "GO:0005575", 
@@ -105,7 +108,7 @@ async function fetchGOTerm(id) {
     }
 
     try {
-    const res = await fetch(`http://localhost:3000/api/go/${encodeURIComponent(id)}`);
+    const res = await fetch(`${apiUrl}/go/${encodeURIComponent(id)}`);
     if (res.ok) {
         const data = await res.json();
         setCachedTerm(id, data);
@@ -141,7 +144,7 @@ if (uncachedIds.length === 0) {
 }
 
 try {
-    const res = await fetch(`http://localhost:3000/api/go/batch`, {
+    const res = await fetch(`${apiUrl}/go/batch`, {
     method: 'POST',
     headers: {
         'Content-Type': 'application/json',
@@ -182,7 +185,7 @@ try {
 
 async function fetchChildren(id) {
     try {
-    const res = await fetch(`http://localhost:3000/api/go/children/${encodeURIComponent(id)}`);
+    const res = await fetch(`${apiUrl}/go/children/${encodeURIComponent(id)}`);
     return res.ok ? await res.json() : [];
     } catch (error) {
     console.error('Error fetching children:', error);
@@ -1986,7 +1989,7 @@ function showTermDetails(id) {
 
     // Fetch strain data from separate endpoint
     strainList.innerHTML = '<li class="text-gray-500">Loading strains...</li>';
-    fetch(`http://localhost:3000/api/go/${encodeURIComponent(id)}/mmrrc-strains`)
+    fetch(`${apiUrl}/go/${encodeURIComponent(id)}/mmrrc-strains`)
     .then(response => response.ok ? response.json() : [])
     .then(strains => {
         if (strains.length > 0) {
